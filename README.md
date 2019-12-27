@@ -9,7 +9,7 @@ thread safe LRU cache with expire feature. It is based on [golang-lru](https://g
 Documentation
 =============
 
-Full docs are available on [Godoc](http://godoc.org/github.com/hnlq715/golang-lru)
+Full docs are available on [Godoc](http://godoc.org/github.com/remones/golang-lru)
 
 Example
 =======
