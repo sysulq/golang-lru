@@ -196,3 +196,42 @@ func TestLRU_Expire(t *testing.T) {
 		t.Errorf("1 should not be contained")
 	}
 }
+
+// Test that Resize can upsize and downsize
+func TestLRU_Resize(t *testing.T) {
+	onEvictCounter := 0
+	onEvicted := func(k interface{}, v interface{}) {
+		onEvictCounter++
+	}
+	l, err := NewLRU(2, onEvicted)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Downsize
+	l.Add(1, 1)
+	l.Add(2, 2)
+	evicted := l.Resize(1)
+	if evicted != 1 {
+		t.Errorf("1 element should have been evicted: %v", evicted)
+	}
+	if onEvictCounter != 1 {
+		t.Errorf("onEvicted should have been called 1 time: %v", onEvictCounter)
+	}
+
+	l.Add(3, 3)
+	if l.Contains(1) {
+		t.Errorf("Element 1 should have been evicted")
+	}
+
+	// Upsize
+	evicted = l.Resize(2)
+	if evicted != 0 {
+		t.Errorf("0 elements should have been evicted: %v", evicted)
+	}
+
+	l.Add(4, 4)
+	if !l.Contains(3) || !l.Contains(4) {
+		t.Errorf("Cache should have contained 2 elements")
+	}
+}
