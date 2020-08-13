@@ -81,20 +81,3 @@ func main() {
 	}
 
 }
-
-func checkFirstElement(val []byte, err error) {
-	_, expectedVal := generateKeyValue(1, valueSize)
-	if err != nil {
-		fmt.Println("Error in get: ", err.Error())
-	} else if string(val) != string(expectedVal) {
-		fmt.Println("Wrong first element: ", string(val))
-	}
-}
-
-func generateKeyValue(index int, valSize int) (string, []byte) {
-	key := fmt.Sprintf("key-%010d", index)
-	fixedNumber := []byte(fmt.Sprintf("%010d", index))
-	val := append(make([]byte, valSize-10), fixedNumber...)
-
-	return key, val
-}
