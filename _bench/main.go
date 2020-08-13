@@ -81,3 +81,11 @@ func main() {
 	}
 
 }
+
+func generateKeyValue(index int, valSize int) (string, []byte) {
+	key := fmt.Sprintf("key-%010d", index)
+	fixedNumber := []byte(fmt.Sprintf("%010d", index))
+	val := append(make([]byte, valSize-10), fixedNumber...)
+
+	return key, val
+}
