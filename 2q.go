@@ -97,7 +97,7 @@ func New2QParamsWithExpire(size int, expire time.Duration, recentRatio float64, 
 	return c, nil
 }
 
-func (c *TwoQueueCache) Get(key interface{}) (interface{}, bool) {
+func (c *TwoQueueCache) Get(key string) (interface{}, bool) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -118,11 +118,11 @@ func (c *TwoQueueCache) Get(key interface{}) (interface{}, bool) {
 	return nil, false
 }
 
-func (c *TwoQueueCache) Add(key, value interface{}) {
+func (c *TwoQueueCache) Add(key string, value interface{}) {
 	c.AddEx(key, value, 0)
 }
 
-func (c *TwoQueueCache) AddEx(key, value interface{}, expire time.Duration) {
+func (c *TwoQueueCache) AddEx(key string, value interface{}, expire time.Duration) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -183,7 +183,7 @@ func (c *TwoQueueCache) Len() int {
 	return c.recent.Len() + c.frequent.Len()
 }
 
-func (c *TwoQueueCache) Keys() []interface{} {
+func (c *TwoQueueCache) Keys() []string {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	k1 := c.frequent.Keys()
@@ -191,7 +191,7 @@ func (c *TwoQueueCache) Keys() []interface{} {
 	return append(k1, k2...)
 }
 
-func (c *TwoQueueCache) Remove(key interface{}) {
+func (c *TwoQueueCache) Remove(key string) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if c.frequent.Remove(key) {
@@ -213,13 +213,13 @@ func (c *TwoQueueCache) Purge() {
 	c.recentEvict.Purge()
 }
 
-func (c *TwoQueueCache) Contains(key interface{}) bool {
+func (c *TwoQueueCache) Contains(key string) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	return c.frequent.Contains(key) || c.recent.Contains(key)
 }
 
-func (c *TwoQueueCache) Peek(key interface{}) (interface{}, bool) {
+func (c *TwoQueueCache) Peek(key string) (interface{}, bool) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	if val, ok := c.frequent.Peek(key); ok {

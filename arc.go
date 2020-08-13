@@ -66,7 +66,7 @@ func NewARCWithExpire(size int, expire time.Duration) (*ARCCache, error) {
 }
 
 // Get looks up a key's value from the cache.
-func (c *ARCCache) Get(key interface{}) (interface{}, bool) {
+func (c *ARCCache) Get(key string) (interface{}, bool) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -88,12 +88,12 @@ func (c *ARCCache) Get(key interface{}) (interface{}, bool) {
 }
 
 // Add adds a value to the cache.
-func (c *ARCCache) Add(key, value interface{}) {
+func (c *ARCCache) Add(key string, value interface{}) {
 	c.AddEx(key, value, 0)
 }
 
 // AddEx adds a value to the cache.
-func (c *ARCCache) AddEx(key, value interface{}, expire time.Duration) {
+func (c *ARCCache) AddEx(key string, value interface{}, expire time.Duration) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -212,7 +212,7 @@ func (c *ARCCache) Len() int {
 }
 
 // Keys returns all the cached keys
-func (c *ARCCache) Keys() []interface{} {
+func (c *ARCCache) Keys() []string {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	k1 := c.t1.Keys()
@@ -221,7 +221,7 @@ func (c *ARCCache) Keys() []interface{} {
 }
 
 // Remove is used to purge a key from the cache
-func (c *ARCCache) Remove(key interface{}) {
+func (c *ARCCache) Remove(key string) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if c.t1.Remove(key) {
@@ -250,7 +250,7 @@ func (c *ARCCache) Purge() {
 
 // Contains is used to check if the cache contains a key
 // without updating recency or frequency.
-func (c *ARCCache) Contains(key interface{}) bool {
+func (c *ARCCache) Contains(key string) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	return c.t1.Contains(key) || c.t2.Contains(key)
@@ -258,7 +258,7 @@ func (c *ARCCache) Contains(key interface{}) bool {
 
 // Peek is used to inspect the cache value of a key
 // without updating recency or frequency.
-func (c *ARCCache) Peek(key interface{}) (interface{}, bool) {
+func (c *ARCCache) Peek(key string) (interface{}, bool) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	if val, ok := c.t1.Peek(key); ok {

@@ -4,23 +4,25 @@ import (
 	"container/list"
 	"errors"
 	"time"
+
+	"github.com/hnlq715/golang-lru/shardmap"
 )
 
 // EvictCallback is used to get a callback when a cache entry is evicted
-type EvictCallback func(key interface{}, value interface{})
+type EvictCallback func(key string, value interface{})
 
 // LRU implements a non-thread safe fixed size LRU cache
 type LRU struct {
 	size      int
 	evictList *list.List
-	items     map[interface{}]*list.Element
+	items     *shardmap.Map
 	expire    time.Duration
 	onEvict   EvictCallback
 }
 
 // entry is used to hold a value in the evictList
 type entry struct {
-	key    interface{}
+	key    string
 	value  interface{}
 	expire *time.Time
 }
@@ -40,7 +42,7 @@ func NewLRU(size int, onEvict EvictCallback) (*LRU, error) {
 	c := &LRU{
 		size:      size,
 		evictList: list.New(),
-		items:     make(map[interface{}]*list.Element),
+		items:     shardmap.New(size),
 		expire:    0,
 		onEvict:   onEvict,
 	}
@@ -55,7 +57,7 @@ func NewLRUWithExpire(size int, expire time.Duration, onEvict EvictCallback) (*L
 	c := &LRU{
 		size:      size,
 		evictList: list.New(),
-		items:     make(map[interface{}]*list.Element),
+		items:     shardmap.New(size),
 		expire:    expire,
 		onEvict:   onEvict,
 	}
@@ -64,22 +66,23 @@ func NewLRUWithExpire(size int, expire time.Duration, onEvict EvictCallback) (*L
 
 // Purge is used to completely clear the cache
 func (c *LRU) Purge() {
-	for k, v := range c.items {
+	c.items.Range(func(k string, v interface{}) bool {
 		if c.onEvict != nil {
-			c.onEvict(k, v.Value.(*entry).value)
+			c.onEvict(k, v.(*list.Element).Value.(*entry).value)
 		}
-		delete(c.items, k)
-	}
+		return true
+	})
+	c.items.Clear()
 	c.evictList.Init()
 }
 
 // Add adds a value to the cache.  Returns true if an eviction occurred.
-func (c *LRU) Add(key, value interface{}) bool {
+func (c *LRU) Add(key string, value interface{}) bool {
 	return c.AddEx(key, value, 0)
 }
 
 // AddEx adds a value to the cache with expire.  Returns true if an eviction occurred.
-func (c *LRU) AddEx(key, value interface{}, expire time.Duration) bool {
+func (c *LRU) AddEx(key string, value interface{}, expire time.Duration) bool {
 	var ex *time.Time = nil
 	if expire > 0 {
 		expire := time.Now().Add(expire)
@@ -89,7 +92,7 @@ func (c *LRU) AddEx(key, value interface{}, expire time.Duration) bool {
 		ex = &expire
 	}
 	// Check for existing item
-	if ent, ok := c.items[key]; ok {
+	if ent, ok := c.get(key); ok {
 		c.evictList.MoveToFront(ent)
 		ent.Value.(*entry).value = value
 		ent.Value.(*entry).expire = ex
@@ -99,7 +102,7 @@ func (c *LRU) AddEx(key, value interface{}, expire time.Duration) bool {
 	// Add new item
 	ent := &entry{key: key, value: value, expire: ex}
 	entry := c.evictList.PushFront(ent)
-	c.items[key] = entry
+	c.set(key, entry)
 
 	evict := c.evictList.Len() > c.size
 	// Verify size not exceeded
@@ -110,8 +113,8 @@ func (c *LRU) AddEx(key, value interface{}, expire time.Duration) bool {
 }
 
 // Get looks up a key's value from the cache.
-func (c *LRU) Get(key interface{}) (value interface{}, ok bool) {
-	if ent, ok := c.items[key]; ok {
+func (c *LRU) Get(key string) (value interface{}, ok bool) {
+	if ent, ok := c.get(key); ok {
 		if ent.Value.(*entry).IsExpired() {
 			return nil, false
 		}
@@ -123,8 +126,8 @@ func (c *LRU) Get(key interface{}) (value interface{}, ok bool) {
 
 // Check if a key is in the cache, without updating the recent-ness
 // or deleting it for being stale.
-func (c *LRU) Contains(key interface{}) (ok bool) {
-	if ent, ok := c.items[key]; ok {
+func (c *LRU) Contains(key string) (ok bool) {
+	if ent, ok := c.get(key); ok {
 		if ent.Value.(*entry).IsExpired() {
 			return false
 		}
@@ -135,8 +138,8 @@ func (c *LRU) Contains(key interface{}) (ok bool) {
 
 // Returns the key value (or undefined if not found) without updating
 // the "recently used"-ness of the key.
-func (c *LRU) Peek(key interface{}) (value interface{}, ok bool) {
-	if ent, ok := c.items[key]; ok {
+func (c *LRU) Peek(key string) (value interface{}, ok bool) {
+	if ent, ok := c.get(key); ok {
 		if ent.Value.(*entry).IsExpired() {
 			return nil, false
 		}
@@ -147,8 +150,8 @@ func (c *LRU) Peek(key interface{}) (value interface{}, ok bool) {
 
 // Remove removes the provided key from the cache, returning if the
 // key was contained.
-func (c *LRU) Remove(key interface{}) bool {
-	if ent, ok := c.items[key]; ok {
+func (c *LRU) Remove(key string) bool {
+	if ent, ok := c.get(key); ok {
 		c.removeElement(ent)
 		return true
 	}
@@ -156,29 +159,29 @@ func (c *LRU) Remove(key interface{}) bool {
 }
 
 // RemoveOldest removes the oldest item from the cache.
-func (c *LRU) RemoveOldest() (interface{}, interface{}, bool) {
+func (c *LRU) RemoveOldest() (string, interface{}, bool) {
 	ent := c.evictList.Back()
 	if ent != nil {
 		c.removeElement(ent)
 		kv := ent.Value.(*entry)
 		return kv.key, kv.value, true
 	}
-	return nil, nil, false
+	return "", nil, false
 }
 
 // GetOldest returns the oldest entry
-func (c *LRU) GetOldest() (interface{}, interface{}, bool) {
+func (c *LRU) GetOldest() (string, interface{}, bool) {
 	ent := c.evictList.Back()
 	if ent != nil {
 		kv := ent.Value.(*entry)
 		return kv.key, kv.value, true
 	}
-	return nil, nil, false
+	return "", nil, false
 }
 
 // Keys returns a slice of the keys in the cache, from oldest to newest.
-func (c *LRU) Keys() []interface{} {
-	keys := make([]interface{}, len(c.items))
+func (c *LRU) Keys() []string {
+	keys := make([]string, c.evictList.Len())
 	i := 0
 	for ent := c.evictList.Back(); ent != nil; ent = ent.Prev() {
 		keys[i] = ent.Value.(*entry).key
@@ -217,8 +220,21 @@ func (c *LRU) removeOldest() {
 func (c *LRU) removeElement(e *list.Element) {
 	c.evictList.Remove(e)
 	kv := e.Value.(*entry)
-	delete(c.items, kv.key)
+	c.items.Delete(kv.key)
 	if c.onEvict != nil {
 		c.onEvict(kv.key, kv.value)
 	}
+}
+
+func (c *LRU) get(key string) (*list.Element, bool) {
+	item, ok := c.items.Get(key)
+	if !ok {
+		return nil, false
+	}
+
+	return item.(*list.Element), true
+}
+
+func (c *LRU) set(key string, value *list.Element) {
+	c.items.Set(key, value)
 }

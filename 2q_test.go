@@ -1,6 +1,7 @@
 package lru
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 )
@@ -11,9 +12,9 @@ func Benchmark2Q_Rand(b *testing.B) {
 		b.Fatalf("err: %v", err)
 	}
 
-	trace := make([]int64, b.N*2)
+	trace := make([]string, b.N*2)
 	for i := 0; i < b.N*2; i++ {
-		trace[i] = rand.Int63() % 32768
+		trace[i] = fmt.Sprintf("%d", rand.Int63()%32768)
 	}
 
 	b.ResetTimer()
@@ -40,12 +41,12 @@ func Benchmark2Q_Freq(b *testing.B) {
 		b.Fatalf("err: %v", err)
 	}
 
-	trace := make([]int64, b.N*2)
+	trace := make([]string, b.N*2)
 	for i := 0; i < b.N*2; i++ {
 		if i%2 == 0 {
-			trace[i] = rand.Int63() % 16384
+			trace[i] = fmt.Sprintf("%d", rand.Int63()%16384)
 		} else {
-			trace[i] = rand.Int63() % 32768
+			trace[i] = fmt.Sprintf("%d", rand.Int63()%32768)
 		}
 	}
 
@@ -75,7 +76,7 @@ func Test2Q_RandomOps(t *testing.T) {
 
 	n := 200000
 	for i := 0; i < n; i++ {
-		key := rand.Int63() % 512
+		key := fmt.Sprintf("%d", rand.Int63()%512)
 		r := rand.Int63()
 		switch r % 3 {
 		case 0:
@@ -101,7 +102,7 @@ func Test2Q_Get_RecentToFrequent(t *testing.T) {
 
 	// Touch all the entries, should be in t1
 	for i := 0; i < 128; i++ {
-		l.Add(i, i)
+		l.Add(fmt.Sprintf("%d", i), i)
 	}
 	if n := l.recent.Len(); n != 128 {
 		t.Fatalf("bad: %d", n)
@@ -112,7 +113,7 @@ func Test2Q_Get_RecentToFrequent(t *testing.T) {
 
 	// Get should upgrade to t2
 	for i := 0; i < 128; i++ {
-		_, ok := l.Get(i)
+		_, ok := l.Get(fmt.Sprintf("%d", i))
 		if !ok {
 			t.Fatalf("missing: %d", i)
 		}
@@ -126,7 +127,7 @@ func Test2Q_Get_RecentToFrequent(t *testing.T) {
 
 	// Get be from t2
 	for i := 0; i < 128; i++ {
-		_, ok := l.Get(i)
+		_, ok := l.Get(fmt.Sprintf("%d", i))
 		if !ok {
 			t.Fatalf("missing: %d", i)
 		}
@@ -146,7 +147,7 @@ func Test2Q_Add_RecentToFrequent(t *testing.T) {
 	}
 
 	// Add initially to recent
-	l.Add(1, 1)
+	l.Add("1", 1)
 	if n := l.recent.Len(); n != 1 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -155,7 +156,7 @@ func Test2Q_Add_RecentToFrequent(t *testing.T) {
 	}
 
 	// Add should upgrade to frequent
-	l.Add(1, 1)
+	l.Add("1", 1)
 	if n := l.recent.Len(); n != 0 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -164,7 +165,7 @@ func Test2Q_Add_RecentToFrequent(t *testing.T) {
 	}
 
 	// Add should remain in frequent
-	l.Add(1, 1)
+	l.Add("1", 1)
 	if n := l.recent.Len(); n != 0 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -180,11 +181,11 @@ func Test2Q_Add_RecentEvict(t *testing.T) {
 	}
 
 	// Add 1,2,3,4,5 -> Evict 1
-	l.Add(1, 1)
-	l.Add(2, 2)
-	l.Add(3, 3)
-	l.Add(4, 4)
-	l.Add(5, 5)
+	l.Add("1", 1)
+	l.Add("2", 2)
+	l.Add("3", 3)
+	l.Add("4", 4)
+	l.Add("5", 5)
 	if n := l.recent.Len(); n != 4 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -196,7 +197,7 @@ func Test2Q_Add_RecentEvict(t *testing.T) {
 	}
 
 	// Pull in the recently evicted
-	l.Add(1, 1)
+	l.Add("1", 1)
 	if n := l.recent.Len(); n != 3 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -208,7 +209,7 @@ func Test2Q_Add_RecentEvict(t *testing.T) {
 	}
 
 	// Add 6, should cause another recent evict
-	l.Add(6, 6)
+	l.Add("6", 6)
 	if n := l.recent.Len(); n != 3 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -227,7 +228,7 @@ func Test2Q(t *testing.T) {
 	}
 
 	for i := 0; i < 256; i++ {
-		l.Add(i, i)
+		l.Add(fmt.Sprintf("%d", i), i)
 	}
 	if l.Len() != 128 {
 		t.Fatalf("bad len: %v", l.Len())
@@ -239,20 +240,20 @@ func Test2Q(t *testing.T) {
 		}
 	}
 	for i := 0; i < 128; i++ {
-		_, ok := l.Get(i)
+		_, ok := l.Get(fmt.Sprintf("%d", i))
 		if ok {
 			t.Fatalf("should be evicted")
 		}
 	}
 	for i := 128; i < 256; i++ {
-		_, ok := l.Get(i)
+		_, ok := l.Get(fmt.Sprintf("%d", i))
 		if !ok {
 			t.Fatalf("should not be evicted")
 		}
 	}
 	for i := 128; i < 192; i++ {
-		l.Remove(i)
-		_, ok := l.Get(i)
+		l.Remove(fmt.Sprintf("%d", i))
+		_, ok := l.Get(fmt.Sprintf("%d", i))
 		if ok {
 			t.Fatalf("should be deleted")
 		}
@@ -262,7 +263,7 @@ func Test2Q(t *testing.T) {
 	if l.Len() != 0 {
 		t.Fatalf("bad len: %v", l.Len())
 	}
-	if _, ok := l.Get(200); ok {
+	if _, ok := l.Get("200"); ok {
 		t.Fatalf("should contain nothing")
 	}
 }
@@ -274,14 +275,14 @@ func Test2Q_Contains(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	l.Add(1, 1)
-	l.Add(2, 2)
-	if !l.Contains(1) {
+	l.Add("1", 1)
+	l.Add("2", 2)
+	if !l.Contains("1") {
 		t.Errorf("1 should be contained")
 	}
 
-	l.Add(3, 3)
-	if l.Contains(1) {
+	l.Add("3", 3)
+	if l.Contains("1") {
 		t.Errorf("Contains should not have updated recent-ness of 1")
 	}
 }
@@ -293,14 +294,14 @@ func Test2Q_Peek(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	l.Add(1, 1)
-	l.Add(2, 2)
-	if v, ok := l.Peek(1); !ok || v != 1 {
+	l.Add("1", 1)
+	l.Add("2", 2)
+	if v, ok := l.Peek("1"); !ok || v != 1 {
 		t.Errorf("1 should be set to 1: %v, %v", v, ok)
 	}
 
-	l.Add(3, 3)
-	if l.Contains(1) {
+	l.Add("3", 3)
+	if l.Contains("1") {
 		t.Errorf("should not have updated recent-ness of 1")
 	}
 }

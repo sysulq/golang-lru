@@ -1,6 +1,7 @@
 package lru
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -16,9 +17,9 @@ func BenchmarkARC_Rand(b *testing.B) {
 		b.Fatalf("err: %v", err)
 	}
 
-	trace := make([]int64, b.N*2)
+	trace := make([]string, b.N*2)
 	for i := 0; i < b.N*2; i++ {
-		trace[i] = rand.Int63() % 32768
+		trace[i] = fmt.Sprintf("%d", rand.Int63()%32768)
 	}
 
 	b.ResetTimer()
@@ -45,12 +46,12 @@ func BenchmarkARC_Freq(b *testing.B) {
 		b.Fatalf("err: %v", err)
 	}
 
-	trace := make([]int64, b.N*2)
+	trace := make([]string, b.N*2)
 	for i := 0; i < b.N*2; i++ {
 		if i%2 == 0 {
-			trace[i] = rand.Int63() % 16384
+			trace[i] = fmt.Sprintf("%d", rand.Int63()%16384)
 		} else {
-			trace[i] = rand.Int63() % 32768
+			trace[i] = fmt.Sprintf("%d", rand.Int63()%32768)
 		}
 	}
 
@@ -80,7 +81,7 @@ func TestARC_RandomOps(t *testing.T) {
 
 	n := 200000
 	for i := 0; i < n; i++ {
-		key := rand.Int63() % 512
+		key := fmt.Sprintf("%d", rand.Int63()%512)
 		r := rand.Int63()
 		switch r % 3 {
 		case 0:
@@ -110,7 +111,7 @@ func TestARC_Get_RecentToFrequent(t *testing.T) {
 
 	// Touch all the entries, should be in t1
 	for i := 0; i < 128; i++ {
-		l.Add(i, i)
+		l.Add(fmt.Sprintf("%d", i), i)
 	}
 	if n := l.t1.Len(); n != 128 {
 		t.Fatalf("bad: %d", n)
@@ -121,7 +122,7 @@ func TestARC_Get_RecentToFrequent(t *testing.T) {
 
 	// Get should upgrade to t2
 	for i := 0; i < 128; i++ {
-		_, ok := l.Get(i)
+		_, ok := l.Get(fmt.Sprintf("%d", i))
 		if !ok {
 			t.Fatalf("missing: %d", i)
 		}
@@ -135,7 +136,7 @@ func TestARC_Get_RecentToFrequent(t *testing.T) {
 
 	// Get be from t2
 	for i := 0; i < 128; i++ {
-		_, ok := l.Get(i)
+		_, ok := l.Get(fmt.Sprintf("%d", i))
 		if !ok {
 			t.Fatalf("missing: %d", i)
 		}
@@ -155,7 +156,7 @@ func TestARC_Add_RecentToFrequent(t *testing.T) {
 	}
 
 	// Add initially to t1
-	l.Add(1, 1)
+	l.Add("1", 1)
 	if n := l.t1.Len(); n != 1 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -164,7 +165,7 @@ func TestARC_Add_RecentToFrequent(t *testing.T) {
 	}
 
 	// Add should upgrade to t2
-	l.Add(1, 1)
+	l.Add("1", 1)
 	if n := l.t1.Len(); n != 0 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -173,7 +174,7 @@ func TestARC_Add_RecentToFrequent(t *testing.T) {
 	}
 
 	// Add should remain in t2
-	l.Add(1, 1)
+	l.Add("1", 1)
 	if n := l.t1.Len(); n != 0 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -190,21 +191,21 @@ func TestARC_Adaptive(t *testing.T) {
 
 	// Fill t1
 	for i := 0; i < 4; i++ {
-		l.Add(i, i)
+		l.Add(fmt.Sprintf("%d", i), i)
 	}
 	if n := l.t1.Len(); n != 4 {
 		t.Fatalf("bad: %d", n)
 	}
 
 	// Move to t2
-	l.Get(0)
-	l.Get(1)
+	l.Get("0")
+	l.Get("1")
 	if n := l.t2.Len(); n != 2 {
 		t.Fatalf("bad: %d", n)
 	}
 
 	// Evict from t1
-	l.Add(4, 4)
+	l.Add("4", 4)
 	if n := l.b1.Len(); n != 1 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -216,7 +217,7 @@ func TestARC_Adaptive(t *testing.T) {
 	// b2 : (MRU) [] (LRU)
 
 	// Add 2, should cause hit on b1
-	l.Add(2, 2)
+	l.Add("2", 2)
 	if n := l.b1.Len(); n != 1 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -234,7 +235,7 @@ func TestARC_Adaptive(t *testing.T) {
 	// b2 : (MRU) [] (LRU)
 
 	// Add 4, should migrate to t2
-	l.Add(4, 4)
+	l.Add("4", 4)
 	if n := l.t1.Len(); n != 0 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -249,7 +250,7 @@ func TestARC_Adaptive(t *testing.T) {
 	// b2 : (MRU) [] (LRU)
 
 	// Add 4, should evict to b2
-	l.Add(5, 5)
+	l.Add("5", 5)
 	if n := l.t1.Len(); n != 1 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -267,7 +268,7 @@ func TestARC_Adaptive(t *testing.T) {
 	// b2 : (MRU) [0] (LRU)
 
 	// Add 0, should decrease p
-	l.Add(0, 0)
+	l.Add("0", 0)
 	if n := l.t1.Len(); n != 0 {
 		t.Fatalf("bad: %d", n)
 	}
@@ -298,7 +299,7 @@ func TestARC(t *testing.T) {
 	}
 
 	for i := 0; i < 256; i++ {
-		l.Add(i, i)
+		l.Add(fmt.Sprintf("%d", i), i)
 	}
 	if l.Len() != 128 {
 		t.Fatalf("bad len: %v", l.Len())
@@ -310,20 +311,20 @@ func TestARC(t *testing.T) {
 		}
 	}
 	for i := 0; i < 128; i++ {
-		_, ok := l.Get(i)
+		_, ok := l.Get(fmt.Sprintf("%d", i))
 		if ok {
 			t.Fatalf("should be evicted")
 		}
 	}
 	for i := 128; i < 256; i++ {
-		_, ok := l.Get(i)
+		_, ok := l.Get(fmt.Sprintf("%d", i))
 		if !ok {
 			t.Fatalf("should not be evicted")
 		}
 	}
 	for i := 128; i < 192; i++ {
-		l.Remove(i)
-		_, ok := l.Get(i)
+		l.Remove(fmt.Sprintf("%d", i))
+		_, ok := l.Get(fmt.Sprintf("%d", i))
 		if ok {
 			t.Fatalf("should be deleted")
 		}
@@ -333,7 +334,7 @@ func TestARC(t *testing.T) {
 	if l.Len() != 0 {
 		t.Fatalf("bad len: %v", l.Len())
 	}
-	if _, ok := l.Get(200); ok {
+	if _, ok := l.Get("200"); ok {
 		t.Fatalf("should contain nothing")
 	}
 }
@@ -345,14 +346,14 @@ func TestARC_Contains(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	l.Add(1, 1)
-	l.Add(2, 2)
-	if !l.Contains(1) {
+	l.Add("1", 1)
+	l.Add("2", 2)
+	if !l.Contains("1") {
 		t.Errorf("1 should be contained")
 	}
 
-	l.Add(3, 3)
-	if l.Contains(1) {
+	l.Add("3", 3)
+	if l.Contains("1") {
 		t.Errorf("Contains should not have updated recent-ness of 1")
 	}
 }
@@ -364,14 +365,14 @@ func TestARC_Peek(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	l.Add(1, 1)
-	l.Add(2, 2)
-	if v, ok := l.Peek(1); !ok || v != 1 {
+	l.Add("1", 1)
+	l.Add("2", 2)
+	if v, ok := l.Peek("1"); !ok || v != 1 {
 		t.Errorf("1 should be set to 1: %v, %v", v, ok)
 	}
 
-	l.Add(3, 3)
-	if l.Contains(1) {
+	l.Add("3", 3)
+	if l.Contains("1") {
 		t.Errorf("should not have updated recent-ness of 1")
 	}
 }
