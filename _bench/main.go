@@ -1,204 +1,100 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"math/rand"
-	"os"
 	"runtime"
-	"sync"
+	"runtime/debug"
 	"time"
 
+	"github.com/allegro/bigcache"
+	"github.com/coocood/freecache"
 	"github.com/hnlq715/golang-lru/shardmap"
-	cmap "github.com/orcaman/concurrent-map"
-	"github.com/tidwall/lotsa"
-	tshardmap "github.com/tidwall/shardmap"
 )
 
-func randKey(rnd *rand.Rand, n int) string {
-	s := make([]byte, n)
-	rnd.Read(s)
-	for i := 0; i < n; i++ {
-		s[i] = 'a' + (s[i] % 26)
-	}
-	return string(s)
+func gcPause() (int64, time.Duration) {
+	runtime.GC()
+	var stats debug.GCStats
+	debug.ReadGCStats(&stats)
+	return stats.NumGC, stats.PauseTotal
 }
 
+const (
+	entries   = 20000000
+	valueSize = 100
+)
+
+var typ = flag.String("type", "", "")
+
 func main() {
-	lotsa.MemUsage = true
-	lotsa.Output = os.Stdout
+	flag.Parse()
+	debug.SetGCPercent(10)
+	fmt.Println("Number of entries: ", entries)
 
-	seed := time.Now().UnixNano()
-	// println(seed)
-	rng := rand.New(rand.NewSource(seed))
-	N := 1_000_000
-	K := 10
-
-	fmt.Printf("\n")
-	fmt.Printf("go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
-	fmt.Printf("\n")
-	fmt.Printf("     number of cpus: %d\n", runtime.NumCPU())
-	fmt.Printf("     number of keys: %d\n", N)
-	fmt.Printf("            keysize: %d\n", K)
-	fmt.Printf("        random seed: %d\n", seed)
-
-	fmt.Printf("\n")
-
-	keysm := make(map[string]bool, N)
-	for len(keysm) < N {
-		keysm[randKey(rng, K)] = true
-	}
-	keys := make([]string, 0, N)
-	for key := range keysm {
-		keys = append(keys, key)
-	}
-
-	lotsa.Output = os.Stdout
-	// lotsa.MemUsage = true
-
-	var mu sync.RWMutex
-
-	println("-- sync.Map --")
-	var sm sync.Map
-	print("set: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		sm.Store(keys[i], i)
-	})
-
-	print("get: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		v, _ := sm.Load(keys[i])
-		if v.(int) != i {
-			panic("bad news")
+	switch *typ {
+	case "map":
+		//------------------------------------------
+		mapCache := make(map[string][]byte)
+		for i := 0; i < entries; i++ {
+			key, val := generateKeyValue(i, valueSize)
+			mapCache[key] = val
 		}
-	})
-	print("rng:       ")
-	lotsa.Ops(100, runtime.NumCPU(), func(i, _ int) {
-		sm.Range(func(key, value interface{}) bool {
-			return true
-		})
-	})
-	print("del: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		mu.Lock()
-		sm.Delete(keys[i])
-		mu.Unlock()
-	})
-	println()
-
-	println("-- stdlib map --")
-	m := make(map[string]interface{})
-	print("set: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		mu.Lock()
-		m[keys[i]] = i
-		mu.Unlock()
-	})
-	print("get: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		mu.RLock()
-		v := m[keys[i]]
-		mu.RUnlock()
-		if v.(int) != i {
-			panic("bad news")
+		num, total := gcPause()
+		fmt.Println("GC pause for map: ", num, total)
+	case "shardmap":
+		//------------------------------------------
+		shardmap := shardmap.New(entries)
+		for i := 0; i < entries; i++ {
+			key, val := generateKeyValue(i, valueSize)
+			shardmap.Set(key, val)
 		}
-	})
-	print("rng:       ")
-	lotsa.Ops(100, runtime.NumCPU(), func(i, _ int) {
-		mu.RLock()
-		for _, v := range m {
-			if v == nil {
-				panic("bad news")
+		num, total := gcPause()
+		fmt.Println("GC pause for shardmap: ", num, total)
+	case "bigcache":
+		config := bigcache.Config{
+			Shards:             256,
+			LifeWindow:         100 * time.Minute,
+			MaxEntriesInWindow: entries,
+			MaxEntrySize:       200,
+			Verbose:            true,
+		}
+
+		bigcache, _ := bigcache.NewBigCache(config)
+		for i := 0; i < entries; i++ {
+			key, val := generateKeyValue(i, valueSize)
+			bigcache.Set(key, val)
+		}
+
+		num, total := gcPause()
+		fmt.Println("GC pause for bigcache: ", num, total)
+	case "freecache":
+		freeCache := freecache.NewCache(entries * 200) //allocate entries * 200 bytes
+		for i := 0; i < entries; i++ {
+			key, val := generateKeyValue(i, valueSize)
+			if err := freeCache.Set([]byte(key), val, 0); err != nil {
+				fmt.Println("Error in set: ", err.Error())
 			}
 		}
-		mu.RUnlock()
-	})
-	print("del: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		mu.Lock()
-		delete(m, keys[i])
-		mu.Unlock()
-	})
-	println()
 
-	println("-- github.com/orcaman/concurrent-map --")
-	cmap := cmap.New()
-	print("set: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		cmap.Set(keys[i], i)
-	})
+		num, total := gcPause()
+		fmt.Println("GC pause for freecache: ", num, total)
+	}
 
-	print("get: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		v, _ := cmap.Get(keys[i])
-		if v.(int) != i {
-			panic("bad news")
-		}
-	})
-	print("rng:       ")
-	lotsa.Ops(100, runtime.NumCPU(), func(i, _ int) {
-		for range cmap.IterBuffered() {
+}
 
-		}
-	})
-	print("del: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		cmap.Remove(keys[i])
-	})
+func checkFirstElement(val []byte, err error) {
+	_, expectedVal := generateKeyValue(1, valueSize)
+	if err != nil {
+		fmt.Println("Error in get: ", err.Error())
+	} else if string(val) != string(expectedVal) {
+		fmt.Println("Wrong first element: ", string(val))
+	}
+}
 
-	println()
+func generateKeyValue(index int, valSize int) (string, []byte) {
+	key := fmt.Sprintf("key-%010d", index)
+	fixedNumber := []byte(fmt.Sprintf("%010d", index))
+	val := append(make([]byte, valSize-10), fixedNumber...)
 
-	println("-- github.com/hnlq715/golang-lru/shardmap --")
-	var com shardmap.Map
-	print("set: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		com.Set(keys[i], i)
-	})
-
-	print("get: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		v, _ := com.Get(keys[i])
-		if v.(int) != i {
-			panic("bad news")
-		}
-	})
-	print("rng:       ")
-	lotsa.Ops(100, runtime.NumCPU(), func(i, _ int) {
-		com.Range(func(key string, value interface{}) bool {
-			return true
-		})
-	})
-	print("del: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		com.Delete(keys[i])
-	})
-
-	println()
-
-	println("-- github.com/tidwall/shardmap --")
-	var tshardmap tshardmap.Map
-	print("set: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		tshardmap.Set(keys[i], i)
-	})
-
-	print("get: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		v, _ := tshardmap.Get(keys[i])
-		if v.(int) != i {
-			panic("bad news")
-		}
-	})
-	print("rng:       ")
-	lotsa.Ops(100, runtime.NumCPU(), func(i, _ int) {
-		tshardmap.Range(func(key string, value interface{}) bool {
-			return true
-		})
-	})
-	print("del: ")
-	lotsa.Ops(N, runtime.NumCPU(), func(i, _ int) {
-		tshardmap.Delete(keys[i])
-	})
-
-	println()
-
+	return key, val
 }
