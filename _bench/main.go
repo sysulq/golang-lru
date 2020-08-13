@@ -19,6 +19,12 @@ func gcPause() (int64, time.Duration) {
 	return stats.NumGC, stats.PauseTotal
 }
 
+func memStatus() runtime.MemStats {
+	var memStatus runtime.MemStats
+	runtime.ReadMemStats(&memStatus)
+	return memStatus
+}
+
 const (
 	entries   = 20000000
 	valueSize = 100
@@ -41,6 +47,7 @@ func main() {
 		}
 		num, total := gcPause()
 		fmt.Println("GC pause for map: ", num, total)
+		fmt.Printf("mem stats: %+v\n", memStatus())
 	case "shardmap":
 		//------------------------------------------
 		shardmap := shardmap.New(entries)
@@ -50,6 +57,7 @@ func main() {
 		}
 		num, total := gcPause()
 		fmt.Println("GC pause for shardmap: ", num, total)
+		fmt.Printf("mem stats: %+v\n", memStatus())
 	case "bigcache":
 		config := bigcache.Config{
 			Shards:             256,
@@ -67,6 +75,7 @@ func main() {
 
 		num, total := gcPause()
 		fmt.Println("GC pause for bigcache: ", num, total)
+		fmt.Printf("mem stats: %+v\n", memStatus())
 	case "freecache":
 		freeCache := freecache.NewCache(entries * 200) //allocate entries * 200 bytes
 		for i := 0; i < entries; i++ {
@@ -78,6 +87,7 @@ func main() {
 
 		num, total := gcPause()
 		fmt.Println("GC pause for freecache: ", num, total)
+		fmt.Printf("mem stats: %+v\n", memStatus())
 	}
 
 }
