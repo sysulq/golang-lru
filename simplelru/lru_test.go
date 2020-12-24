@@ -242,13 +242,13 @@ func BenchmarkAdd(b *testing.B) {
 
 	b.Run("Add with small keys", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			l.Add(i%100, true)
+			l.Add(i%100, "this is a foo bar")
 		}
 	})
 
 	b.Run("Add with large keys", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			l.Add(i%10000, true)
+			l.Add(i%10000, "this is a foo bar")
 		}
 	})
 }
