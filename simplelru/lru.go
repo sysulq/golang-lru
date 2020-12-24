@@ -3,6 +3,7 @@ package simplelru
 import (
 	"container/list"
 	"errors"
+	"sync"
 	"time"
 )
 
@@ -31,6 +32,14 @@ func (e *entry) IsExpired() bool {
 	}
 	return time.Now().After(*e.expire)
 }
+
+var (
+	pool = sync.Pool{
+		New: func() interface{} {
+			return &entry{}
+		},
+	}
+)
 
 // NewLRU constructs an LRU of the given size
 func NewLRU(size int, onEvict EvictCallback) (*LRU, error) {
@@ -97,7 +106,10 @@ func (c *LRU) AddEx(key, value interface{}, expire time.Duration) bool {
 	}
 
 	// Add new item
-	ent := &entry{key: key, value: value, expire: ex}
+	ent := pool.Get().(*entry)
+	ent.key = key
+	ent.value = value
+	ent.expire = ex
 	entry := c.evictList.PushFront(ent)
 	c.items[key] = entry
 
@@ -216,6 +228,7 @@ func (c *LRU) removeOldest() {
 // removeElement is used to remove a given list element from the cache
 func (c *LRU) removeElement(e *list.Element) {
 	c.evictList.Remove(e)
+	pool.Put(e.Value)
 	kv := e.Value.(*entry)
 	delete(c.items, kv.key)
 	if c.onEvict != nil {
