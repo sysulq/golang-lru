@@ -235,3 +235,12 @@ func TestLRU_Resize(t *testing.T) {
 		t.Errorf("Cache should have contained 2 elements")
 	}
 }
+
+func BenchmarkAdd(b *testing.B) {
+	l, _ := NewLRU(1000, nil)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		l.Add(i, true)
+	}
+}
