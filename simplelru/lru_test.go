@@ -240,7 +240,15 @@ func BenchmarkAdd(b *testing.B) {
 	l, _ := NewLRU(1000, nil)
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		l.Add(i, true)
-	}
+	b.Run("Add with small keys", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			l.Add(i%100, true)
+		}
+	})
+
+	b.Run("Add with large keys", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			l.Add(i%10000, true)
+		}
+	})
 }

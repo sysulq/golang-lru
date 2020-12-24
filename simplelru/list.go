@@ -11,8 +11,6 @@
 //
 package simplelru
 
-import "fmt"
-
 // Element is an element of a linked list.
 type Element struct {
 	// Next and previous pointers in the doubly-linked list of elements.
@@ -122,7 +120,6 @@ func (l *List) move(e, at *Element) *Element {
 	if e == at {
 		return e
 	}
-	fmt.Println(e)
 	e.prev.next = e.next
 	e.next.prev = e.prev
 
