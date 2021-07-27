@@ -108,9 +108,16 @@ func (c *TwoQueueCache) Get(key interface{}) (interface{}, bool) {
 
 	// If the value is contained in recent, then we
 	// promote it to frequent
-	if val, ok := c.recent.Peek(key); ok {
+	if val, expire, ok := c.recent.PeekWithExpireTime(key); ok {
 		c.recent.Remove(key)
-		c.frequent.Add(key, val)
+		var expireDuration time.Duration
+		if expire != nil {
+			expireDuration = expire.Sub(time.Now())
+			if expireDuration < 0 {
+				return nil, false
+			}
+		}
+		c.frequent.AddEx(key, val, expireDuration)
 		return val, ok
 	}
 

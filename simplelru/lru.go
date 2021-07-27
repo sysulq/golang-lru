@@ -136,13 +136,21 @@ func (c *LRU) Contains(key interface{}) (ok bool) {
 // Returns the key value (or undefined if not found) without updating
 // the "recently used"-ness of the key.
 func (c *LRU) Peek(key interface{}) (value interface{}, ok bool) {
+	v, _, ok := c.PeekWithExpireTime(key)
+	return v, ok
+}
+
+// Returns the key value (or undefined if not found) and its associated expire
+// time without updating the "recently used"-ness of the key.
+func (c *LRU) PeekWithExpireTime(key interface{}) (
+	value interface{}, expire *time.Time, ok bool) {
 	if ent, ok := c.items[key]; ok {
 		if ent.Value.(*entry).IsExpired() {
-			return nil, false
+			return nil, nil, false
 		}
-		return ent.Value.(*entry).value, true
+		return ent.Value.(*entry).value, ent.Value.(*entry).expire, true
 	}
-	return nil, ok
+	return nil, nil, ok
 }
 
 // Remove removes the provided key from the cache, returning if the
