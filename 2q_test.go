@@ -3,6 +3,7 @@ package lru
 import (
 	"math/rand"
 	"testing"
+	"time"
 )
 
 func Benchmark2Q_Rand(b *testing.B) {
@@ -302,5 +303,29 @@ func Test2Q_Peek(t *testing.T) {
 	l.Add(3, 3)
 	if l.Contains(1) {
 		t.Errorf("should not have updated recent-ness of 1")
+	}
+}
+
+// Test that values expire as expected
+func Test2Q_Expire(t *testing.T) {
+	l, err := New2Q(100)
+	if err != nil {
+		t.Fatalf("failed to create LRU: %v", err)
+	}
+
+	l.AddEx("hey", "hello", 300*time.Millisecond)
+
+	value, ok := l.Get("hey")
+	if !ok {
+		t.Fatal("failed to read back value")
+	}
+	if value.(string) != "hello" {
+		t.Errorf("expected \"hello\", got %v", value)
+	}
+
+	time.Sleep(500 * time.Millisecond)
+	_, ok = l.Get("hey")
+	if ok {
+		t.Errorf("cached didn't properly expire")
 	}
 }
