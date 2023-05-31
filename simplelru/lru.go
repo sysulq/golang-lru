@@ -1,7 +1,6 @@
 package simplelru
 
 import (
-	"container/list"
 	"errors"
 	"time"
 )
@@ -12,8 +11,9 @@ type EvictCallback func(key interface{}, value interface{})
 // LRU implements a non-thread safe fixed size LRU cache
 type LRU struct {
 	size      int
-	evictList *list.List
-	items     map[interface{}]*list.Element
+	evictList *List
+	freeList  *List
+	items     map[interface{}]*Element
 	expire    time.Duration
 	onEvict   EvictCallback
 }
@@ -39,10 +39,14 @@ func NewLRU(size int, onEvict EvictCallback) (*LRU, error) {
 	}
 	c := &LRU{
 		size:      size,
-		evictList: list.New(),
-		items:     make(map[interface{}]*list.Element),
+		evictList: New(),
+		freeList:  New(),
+		items:     make(map[interface{}]*Element),
 		expire:    0,
 		onEvict:   onEvict,
+	}
+	for i := 0; i < size; i++ {
+		c.freeList.PushFront(&entry{})
 	}
 	return c, nil
 }
@@ -54,11 +58,16 @@ func NewLRUWithExpire(size int, expire time.Duration, onEvict EvictCallback) (*L
 	}
 	c := &LRU{
 		size:      size,
-		evictList: list.New(),
-		items:     make(map[interface{}]*list.Element),
+		evictList: New(),
+		freeList:  New(),
+		items:     make(map[interface{}]*Element),
 		expire:    expire,
 		onEvict:   onEvict,
 	}
+	for i := 0; i < size; i++ {
+		c.freeList.PushFront(&entry{})
+	}
+
 	return c, nil
 }
 
@@ -71,6 +80,10 @@ func (c *LRU) Purge() {
 		delete(c.items, k)
 	}
 	c.evictList.Init()
+	c.freeList.Init()
+	for i := 0; i < c.size; i++ {
+		c.freeList.PushFront(&entry{})
+	}
 }
 
 // Add adds a value to the cache.  Returns true if an eviction occurred.
@@ -96,16 +109,21 @@ func (c *LRU) AddEx(key, value interface{}, expire time.Duration) bool {
 		return false
 	}
 
-	// Add new item
-	ent := &entry{key: key, value: value, expire: ex}
-	entry := c.evictList.PushFront(ent)
-	c.items[key] = entry
-
-	evict := c.evictList.Len() > c.size
+	evict := c.evictList.Len() >= c.size
 	// Verify size not exceeded
 	if evict {
 		c.removeOldest()
 	}
+
+	// Add new item
+	ent := c.freeList.Front()
+	ent.Value.(*entry).key = key
+	ent.Value.(*entry).value = value
+	ent.Value.(*entry).expire = ex
+	c.freeList.Remove(ent)
+	c.evictList.PushElementFront(ent)
+	c.items[key] = ent
+
 	return evict
 }
 
@@ -222,8 +240,9 @@ func (c *LRU) removeOldest() {
 }
 
 // removeElement is used to remove a given list element from the cache
-func (c *LRU) removeElement(e *list.Element) {
+func (c *LRU) removeElement(e *Element) {
 	c.evictList.Remove(e)
+	c.freeList.PushElementFront(e)
 	kv := e.Value.(*entry)
 	delete(c.items, kv.key)
 	if c.onEvict != nil {
