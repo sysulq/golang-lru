@@ -1,7 +1,7 @@
 golang-lru
 ==========
-[![Build Status](https://travis-ci.org/hnlq715/golang-lru.svg?branch=master)](https://travis-ci.org/hnlq715/golang-lru)
-[![Coverage](https://codecov.io/gh/hnlq715/golang-lru/branch/master/graph/badge.svg)](https://codecov.io/gh/hnlq715/golang-lru)
+[![Build Status](https://travis-ci.org/sysulq/golang-lru.svg?branch=master)](https://travis-ci.org/sysulq/golang-lru)
+[![Coverage](https://codecov.io/gh/sysulq/golang-lru/branch/master/graph/badge.svg)](https://codecov.io/gh/sysulq/golang-lru)
 
 This provides the `lru` package which implements a fixed-size
 thread safe LRU cache with expire feature. It is based on [golang-lru](https://github.com/hashicorp/golang-lru).
@@ -9,7 +9,7 @@ thread safe LRU cache with expire feature. It is based on [golang-lru](https://g
 Documentation
 =============
 
-Full docs are available on [Godoc](http://godoc.org/github.com/hnlq715/golang-lru)
+Full docs are available on [Godoc](http://godoc.org/github.com/sysulq/golang-lru)
 
 Example
 =======
@@ -29,14 +29,14 @@ if l.Len() != 128 {
 Benchmarks
 ===
 
-[without pool](https://github.com/hnlq715/golang-lru/tree/master)
+[without pool](https://github.com/sysulq/golang-lru/tree/master)
 ---
 ```
-Running tool: /home/liqi/workspace/go/bin/go test -benchmem -run=^$ -coverprofile=/tmp/vscode-govFyHq9/go-code-cover -bench . github.com/hnlq715/golang-lru
+Running tool: /home/liqi/workspace/go/bin/go test -benchmem -run=^$ -coverprofile=/tmp/vscode-govFyHq9/go-code-cover -bench . github.com/sysulq/golang-lru
 
 goos: linux
 goarch: amd64
-pkg: github.com/hnlq715/golang-lru
+pkg: github.com/sysulq/golang-lru
 Benchmark2Q_Rand-4    	 1000000	      1415 ns/op	     158 B/op	       5 allocs/op
 --- BENCH: Benchmark2Q_Rand-4
     2q_test.go:34: hit: 0 miss: 1 ratio: 0.000000
@@ -77,19 +77,19 @@ BenchmarkLRU_Freq-4   	 2456690	       487 ns/op	      83 B/op	       3 allocs/o
     lru_test.go:66: hit: 752485 miss: 1704205 ratio: 0.441546
 PASS
 coverage: 54.9% of statements
-ok  	github.com/hnlq715/golang-lru	9.138s
+ok  	github.com/sysulq/golang-lru	9.138s
 
 ```
 
 
-[with sync pool](https://github.com/hnlq715/golang-lru/tree/feature/syncpool)
+[with sync pool](https://github.com/sysulq/golang-lru/tree/feature/syncpool)
 ---
 ```
-Running tool: /home/liqi/workspace/go/bin/go test -benchmem -run=^$ -coverprofile=/tmp/vscode-govFyHq9/go-code-cover -bench . github.com/hnlq715/golang-lru
+Running tool: /home/liqi/workspace/go/bin/go test -benchmem -run=^$ -coverprofile=/tmp/vscode-govFyHq9/go-code-cover -bench . github.com/sysulq/golang-lru
 
 goos: linux
 goarch: amd64
-pkg: github.com/hnlq715/golang-lru
+pkg: github.com/sysulq/golang-lru
 Benchmark2Q_Rand-4    	 1000000	      1090 ns/op	      92 B/op	       4 allocs/op
 --- BENCH: Benchmark2Q_Rand-4
     2q_test.go:34: hit: 0 miss: 1 ratio: 0.000000
@@ -131,19 +131,19 @@ BenchmarkLRU_Freq-4   	 2630702	       475 ns/op	      49 B/op	       2 allocs/o
     lru_test.go:66: hit: 810266 miss: 1820436 ratio: 0.445094
 PASS
 coverage: 55.3% of statements
-ok  	github.com/hnlq715/golang-lru	9.714s
+ok  	github.com/sysulq/golang-lru	9.714s
 ```
 
 
 
-[with list pool](https://github.com/hnlq715/golang-lru/tree/feature/listpool)
+[with list pool](https://github.com/sysulq/golang-lru/tree/feature/listpool)
 ---
 ```
-Running tool: /home/liqi/workspace/go/bin/go test -benchmem -run=^$ -coverprofile=/tmp/vscode-govFyHq9/go-code-cover -bench . github.com/hnlq715/golang-lru
+Running tool: /home/liqi/workspace/go/bin/go test -benchmem -run=^$ -coverprofile=/tmp/vscode-govFyHq9/go-code-cover -bench . github.com/sysulq/golang-lru
 
 goos: linux
 goarch: amd64
-pkg: github.com/hnlq715/golang-lru
+pkg: github.com/sysulq/golang-lru
 Benchmark2Q_Rand-4    	 1000000	      1311 ns/op	      26 B/op	       2 allocs/op
 --- BENCH: Benchmark2Q_Rand-4
     2q_test.go:34: hit: 0 miss: 1 ratio: 0.000000
@@ -187,5 +187,5 @@ BenchmarkLRU_Freq-4   	 3186918	       359 ns/op	      16 B/op	       1 allocs/o
     lru_test.go:66: hit: 977757 miss: 2209161 ratio: 0.442592
 PASS
 coverage: 55.3% of statements
-ok  	github.com/hnlq715/golang-lru	11.639s
+ok  	github.com/sysulq/golang-lru	11.639s
 ```
