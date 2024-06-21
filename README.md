@@ -1,6 +1,6 @@
 golang-lru
 ==========
-[![Build Status](https://travis-ci.org/sysulq/golang-lru.svg?branch=master)](https://travis-ci.org/sysulq/golang-lru)
+[![Build and Test](https://github.com/sysulq/golang-lru/actions/workflows/go.yml/badge.svg)](https://github.com/sysulq/golang-lru/actions/workflows/go.yml)
 [![Coverage](https://codecov.io/gh/sysulq/golang-lru/branch/master/graph/badge.svg)](https://codecov.io/gh/sysulq/golang-lru)
 
 This provides the `lru` package which implements a fixed-size
