@@ -3,6 +3,7 @@ package lru
 import (
 	"math/rand"
 	"testing"
+	"time"
 )
 
 func BenchmarkLRU_Rand(b *testing.B) {
@@ -218,4 +219,63 @@ func TestLRUPeek(t *testing.T) {
 	if l.Contains(1) {
 		t.Errorf("should not have updated recent-ness of 1")
 	}
+}
+
+// test that NewWithExpireAndEvict works as expected
+func TestNewWithExpireAndEvict(t *testing.T) {
+	evictCounter := 0
+	onEvicted := func(k interface{}, v interface{}) {
+		evictCounter += 1
+	}
+	
+
+	expire := 200 * time.Millisecond
+	l, err := NewWithExpireAndEvict(3, expire, onEvicted)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	//test evict by expiration
+	l.Add(1, 1)
+
+	time.Sleep(201 * time.Millisecond) //eviction counter 1
+
+	l.Add(2, 2)
+	l.Add(3, 3)
+
+	//test length
+	if l.Len() != 3 {
+		t.Fatalf("Wrong size!")
+	}
+	
+	//simple get
+	var observed interface{}
+	var observedInt int
+	var ok bool
+	if observed, ok = l.Get(2); !ok {
+		t.Fatalf("expected value does not exist in cache")
+	}
+	observedInt, ok = observed.(int)
+	if !ok {
+		t.Fatalf("type assertion failed expected value")
+	}
+
+	if observedInt != 2 {
+		t.Fatalf("value retrieved from cache does equal expected value")
+	}
+
+
+	//test evict by manual removal
+	l.Remove(2) // increment eviction counter = 2
+
+
+	//test evict by surpassing capacity
+	l.Add(4, 4)
+	l.Add(5, 5) 
+	l.Add(6, 6)
+	//increment eviction counter = 3
+
+	if evictCounter != 3 {
+		t.Fatalf("evict handler did not increment correctly: count %v", evictCounter)
+	}
+
 }

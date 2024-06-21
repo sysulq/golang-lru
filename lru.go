@@ -46,6 +46,19 @@ func NewWithExpire(size int, expire time.Duration) (*Cache, error) {
 	return c, nil
 }
 
+// NewWithExpireAndEvict constructs a fixed size cache with expire 
+//and with the given eviction callback
+func NewWithExpireAndEvict(size int, expire time.Duration, onEvicted func(key interface{}, value interface{})) (*Cache, error) {
+	lru, err := simplelru.NewLRUWithExpire(size, expire, simplelru.EvictCallback(onEvicted))
+	if err != nil {
+		return nil, err
+	}
+	c := &Cache{
+		lru: lru,
+	}
+	return c, nil
+}
+
 // Purge is used to completely clear the cache
 func (c *Cache) Purge() {
 	c.lock.Lock()
